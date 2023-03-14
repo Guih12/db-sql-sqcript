@@ -1,3 +1,9 @@
+-- Para iniciar o sistema, existe duas possibilidades para rodar esse sistema.
+-- Para quem é usuário linux/unix: -- Você importa o CSV na raíz do arquivo para a pasta /tmp/
+-- Para usuários Windows você importa o CSV para a pasta :D/
+
+
+
 DROP VIEW IF EXISTS cities_distinct CASCADE;
 DROP TABLE IF EXISTS users_temp, contries, states, users, cities, airport_temp, airports, companies;
 
@@ -65,15 +71,22 @@ CREATE TABLE users(
 );
 
 
+
+-- COPY dados CSV para windows
 COPY users_temp   FROM 'D:\fakenames.csv' DELIMITER ',' CSV HEADER;
 
---- inset date for contries using select
+-- COPY dados CSV para linux
+--COPY users_temp   FROM '/tmp/fakenames.csv' DELIMITER ',' CSV HEADER;
+
+--- Insere os dados na tabela de cidades(countries) a partir da tabela temporária users_temp, fazendo
+--- um distinct das cidades
 INSERT INTO contries(name)
 SELECT
   DISTINCT countryfull as name 
 FROM users_temp;
 
---- INSERT DATA FOR STATES USING SELECT 
+--- Insere os dados na tabela de estados(states) a partir da tabela temporária, fazendo 
+-- um select puxando os dados de acordo com o id encontrado na tabela contries 
 INSERT INTO states(uf, name, contry_id)
 SELECT DISTINCT state as uf, statefull as name,(
   SELECT id as contry_id FROM contries where name = 'Brazil'
@@ -81,6 +94,9 @@ SELECT DISTINCT state as uf, statefull as name,(
 FROM users_temp;
 
 
+
+--- Inserir os dados na tabela empresas(companies) a partit da tabela temporária, fazendo
+-- um select puxando os dados distintos
 INSERT INTO companies(name)
 SELECT
  DISTINCT company
@@ -91,12 +107,17 @@ CREATE VIEW cities_distinct AS
 	FROM users_temp;
 
 
+
+--- Insere valores na tabela de cidade fazendo um select nas cidades distintas
+--- Obetendo através de um select o estado_id(state_id)
 INSERT INTO cities(name, zipcode, state_id)
 SELECT cities_distinct.name, cities_distinct.zipcode, (
 	SELECT id AS state_id FROM states WHERE uf = cities_distinct.uf
 ) FROM cities_distinct;
 
 
+
+--- Deletar as envidências duplicadas na tabela de cidade
 DELETE FROM cities
 WHERE id IN 
 (SELECT id
@@ -108,7 +129,8 @@ WHERE id IN
         WHERE t.row_num > 1 );
 
 
---- INSERT DATA FOR USERS USING SELECT 
+--- Insere os dados ta tabela de usuário, puxando esses dados da tabela temporarária
+--- E também fazendo um select nas tabelas de cidades e company. 
 INSERT INTO users(name, lastname, age, birthday, kilograms, city_id, company_id)
 SELECT
   givenname as name,
